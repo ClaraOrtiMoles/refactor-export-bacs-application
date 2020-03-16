@@ -19,17 +19,20 @@ namespace Sonovate.Codetest.UnitTests
 		private Mock<IAgencyPaymentService> _agencyPaymentMock;
 		private Mock<ICsvFileWriter> _csvFileWriterMock;
 		private string _exceptionMessage;
-		
+		private	Mock<ISupplierBacsService> _supplierBacsServiceMock;
+
 		[SetUp]
 		public void Setup()
 		{
 			_settingsMock = new Mock<ISettings>();
 			_agencyPaymentMock = new Mock<IAgencyPaymentService>();
 			_csvFileWriterMock = new Mock<ICsvFileWriter>();
+			_supplierBacsServiceMock = new Mock<ISupplierBacsService>();
 
 			_bacsExportService.SetSettings(_settingsMock.Object);
 			_bacsExportService.SetAgencyPaymentService(_agencyPaymentMock.Object);
 			_bacsExportService.SetCsvFileWriter(_csvFileWriterMock.Object);
+			_bacsExportService.SetSupplierBacsService(_supplierBacsServiceMock.Object);
 
 			_exceptionMessage = _fixture.Create<string>();
 		}
@@ -73,6 +76,30 @@ namespace Sonovate.Codetest.UnitTests
 
 			_csvFileWriterMock.Verify(x => x.WriteCsvFile($"{BacsExportType.Agency.ToString()}_BACSExport.csv", bacsResults), Times.Once);
 		}
-		 
+
+		[Test]
+		public void ThrowException_WhenExportingZip_GivenBacsExportTypeIsSupplierAndGetSupplierPaymentsThrowInvalidOperationException()
+		{ 
+			_supplierBacsServiceMock.Setup(x => x.GetSupplierPayments(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+				.Throws(new InvalidOperationException(_exceptionMessage));
+
+			Func<Task> action = () => _bacsExportService.ExportZip(BacsExportType.Supplier);
+			action.Should().ThrowAsync<Exception>().WithMessage(_exceptionMessage);
+		}
+
+		[Test]
+		public async Task ExportSupplierBacsResult_WhenExportingZip_GivenBacsExportTypeIsSupplier()
+		{
+			var bacsResults = _fixture.Create<List<SupplierBacs>>();
+
+			_supplierBacsServiceMock.Setup(x => x.GetSupplierPayments(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+				.Returns(new SupplierBacsExport() {SupplierPayment = bacsResults});
+			
+			await _bacsExportService.ExportZip(BacsExportType.Supplier);
+
+			_csvFileWriterMock.Verify(x => x.WriteCsvFile($"{BacsExportType.Supplier.ToString()}_BACSExport.csv", bacsResults), Times.Once);
+
+		}
+
 	}
 }

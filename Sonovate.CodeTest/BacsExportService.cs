@@ -1,27 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using CsvHelper;
-using Raven.Client.Documents;
-using Sonovate.CodeTest.Domain;
-
-namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest
 {
-	using Configuration;
+    using System;
+    using System.Threading.Tasks;
+    using Configuration;
+    using Domain;
 
-	public class BacsExportService
+    internal class BacsExportService
     {
-        private const string NOT_AVAILABLE = "NOT AVAILABLE";
-
         private IAgencyPaymentService _agencyPaymentService;
         private ICsvFileWriter _csvFileWriter;
-
+        private ISupplierBacsService _supplierBacsService;
         private ISettings _settings;
 
         public BacsExportService()
         {
+            SetSupplierBacsService(new SupplierBacsService());
 	        SetAgencyPaymentService(new AgencyPaymentService());
             SetSettings(new Settings());
             SetCsvFileWriter(new CsvFileWriter());
@@ -41,121 +34,66 @@ namespace Sonovate.CodeTest
         {
 	        _agencyPaymentService = agencyPaymentService;
         }
-        
+
+        public void SetSupplierBacsService(ISupplierBacsService supplierBacsService)
+        {
+	        _supplierBacsService = supplierBacsService;
+        }
+
         public async Task ExportZip(BacsExportType bacsExportType)
         {
-            if (bacsExportType == BacsExportType.None)
+            if (NoExportTypeProvided(bacsExportType))
             {
                 throw new Exception("No export type provided.");
             }
-
-           
+             
             var startDate = DateTime.Now.AddMonths(-1);
             var endDate = DateTime.Now;
-
+            
             try
             {
-	            if (bacsExportType == BacsExportType.Agency && _settings.GetSetting("EnableAgencyPayments") == "true")
-	            {
-		            var payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
-		            var filename = $"{bacsExportType}_BACSExport.csv";
-		            _csvFileWriter.WriteCsvFile<BacsResult>(filename, payments);
-                }
-
                 switch (bacsExportType)
                 {
                     case BacsExportType.Agency:
+	                    await ExportAgencyBacs(startDate, endDate);
 	                    break;
                     case BacsExportType.Supplier:
-                        var supplierBacsExport = GetSupplierPayments(startDate, endDate);
-                        SaveSupplierBacsExport(supplierBacsExport);
+                        ExportSupplierBacs(startDate, endDate);
                         break;
                     default:
                         throw new Exception("Invalid BACS Export Type.");
                 }
-
             }
             catch (InvalidOperationException inOpEx)
             {
                 throw new Exception(inOpEx.Message);
             }
         }
-        
-        private SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate)
+
+        private static bool NoExportTypeProvided(BacsExportType bacsExportType)
         {
-            var invoiceTransactions = new InvoiceTransactionRepository();
-            var candidateInvoiceTransactions = invoiceTransactions.GetBetweenDates(startDate, endDate);
-
-            if (!candidateInvoiceTransactions.Any())
-            {
-                throw new InvalidOperationException(string.Format("No supplier invoice transactions found between dates {0} to {1}", startDate, endDate));
-            }
-
-            var candidateBacsExport = CreateCandidateBacxExportFromSupplierPayments(candidateInvoiceTransactions);
-
-            return candidateBacsExport;
-        }
-        private SupplierBacsExport CreateCandidateBacxExportFromSupplierPayments(IList<InvoiceTransaction> supplierPayments)
-        {
-            var candidateBacsExport = new SupplierBacsExport
-            {
-                SupplierPayment = new List<SupplierBacs>()
-            };
-
-            candidateBacsExport.SupplierPayment = BuildSupplierPayments(supplierPayments);
-                
-            return candidateBacsExport;
+	        return bacsExportType == BacsExportType.None;
         }
 
-        private List<SupplierBacs> BuildSupplierPayments(IEnumerable<InvoiceTransaction> invoiceTransactions)
+        private void ExportSupplierBacs(DateTime startDate, DateTime endDate)
         {
-            var results = new List<SupplierBacs>();
-
-            var transactionsByCandidateAndInvoiceId = invoiceTransactions.GroupBy(transaction => new
-            {
-                transaction.InvoiceId,
-                transaction.SupplierId
-            });
-
-            foreach (var transactionGroup in transactionsByCandidateAndInvoiceId)
-            {
-                var candidateRepository = new CandidateRepository();
-                var candidate = candidateRepository.GetById(transactionGroup.Key.SupplierId);
-
-                if (candidate == null)
-                {
-                    throw new InvalidOperationException(string.Format("Could not load candidate with Id {0}",
-                        transactionGroup.Key.SupplierId));
-                }
-
-                var result = new SupplierBacs();
-                
-                var bank = candidate.BankDetails;
-
-                result.AccountName = bank.AccountName;
-                result.AccountNumber = bank.AccountNumber;
-                result.SortCode = bank.SortCode;
-                result.PaymentAmount = transactionGroup.Sum(invoiceTransaction => invoiceTransaction.Gross);
-                result.InvoiceReference = string.IsNullOrEmpty(transactionGroup.First().InvoiceRef)
-                    ? NOT_AVAILABLE
-                    : transactionGroup.First().InvoiceRef;
-                result.PaymentReference = string.Format("SONOVATE{0}",
-                    transactionGroup.First().InvoiceDate.GetValueOrDefault().ToString("ddMMyyyy"));
-
-                results.Add(result);
-            }
-
-            return results;
+            var paymentsSuppliers = _supplierBacsService.GetSupplierPayments(startDate, endDate).SupplierPayment;
+	        _csvFileWriter.WriteCsvFile(GetFileName(BacsExportType.Supplier), paymentsSuppliers);
+        }
+       
+        private async Task ExportAgencyBacs(DateTime startDate, DateTime endDate)
+        {
+            if (_settings.GetSetting("EnableAgencyPayments") != "true")
+		        return;
+             
+            var payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
+	        _csvFileWriter.WriteCsvFile(GetFileName(BacsExportType.Agency), payments);
         }
 
-        private void SaveSupplierBacsExport(SupplierBacsExport supplierBacsExport)
+        private static string GetFileName(BacsExportType type)
         {
-            var fileName = string.Format("{0}_BACSExport.csv", BacsExportType.Supplier);
-
-            using (var csv = new CsvWriter(new StreamWriter(new FileStream(fileName, FileMode.Create))))
-            {
-                csv.WriteRecords(supplierBacsExport.SupplierPayment);
-            }
+	        return $"{type}_BACSExport.csv";
         }
+
     }
 }

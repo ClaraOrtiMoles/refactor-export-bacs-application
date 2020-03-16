@@ -80,9 +80,4 @@ namespace Sonovate.CodeTest
 
        
     }
-
-	internal interface ISupplierBacsService
-	{
-        SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate);
-	}
 }
