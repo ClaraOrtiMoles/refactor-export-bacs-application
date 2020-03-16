@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest
 {
 	using System;
 	using System.Collections.Generic;

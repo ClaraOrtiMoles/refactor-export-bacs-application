@@ -1,4 +1,4 @@
-﻿namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest.Services
 {
 	using System;
 	using System.Collections.Generic;

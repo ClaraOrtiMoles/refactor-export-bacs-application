@@ -7,6 +7,7 @@
 	using AutoFixture;
 	using CodeTest;
 	using CodeTest.Domain;
+	using CodeTest.Services;
 	using FluentAssertions;
 	using Moq;
 	using NUnit.Framework;
@@ -15,7 +16,7 @@
 	public class AgencyBacsServiceShould
 	{
 		private readonly Fixture _fixture = new Fixture();
-		private AgencyPaymentService _agencyPaymentService;
+		private AgencyBacsService _agencyBacsService;
 		private Mock<IAgencyRepository> _agencyRepositoryMock;
 		private Mock<IPaymentsRepository> _paymentsRepositoryMock;
 		private DateTime _startDate;
@@ -24,11 +25,11 @@
 		[SetUp]
 		public void Setup()
 		{
-			_agencyPaymentService = new AgencyPaymentService();
+			_agencyBacsService = new AgencyBacsService();
 			_agencyRepositoryMock = new Mock<IAgencyRepository>();
 			_paymentsRepositoryMock = new Mock<IPaymentsRepository>();
-			_agencyPaymentService.SetAgencyRepository(_agencyRepositoryMock.Object);
-			_agencyPaymentService.SetPaymentsRepository(_paymentsRepositoryMock.Object);
+			_agencyBacsService.SetAgencyRepository(_agencyRepositoryMock.Object);
+			_agencyBacsService.SetPaymentsRepository(_paymentsRepositoryMock.Object);
 			_startDate = _fixture.Create<DateTime>();
 			_endDate = _fixture.Create<DateTime>();
 		}
@@ -40,9 +41,8 @@
 				.Setup(x => x.GetBetweenDates(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
 				.Returns(new List<Payment>());
 
-
-			Func<Task<List<BacsResult>>> action = () =>
-				_agencyPaymentService.GetAgencyBacsResult(_startDate, _endDate);
+			Func<Task<List<AgencyBacs>>> action = () =>
+				_agencyBacsService.GetAgencyBacsResult(_startDate, _endDate);
 
 			action.Should()
 				.ThrowAsync<InvalidOperationException>()
@@ -63,7 +63,7 @@
 			var agencyIds = listPayments.Select(x => x.AgencyId).Distinct().ToList();
 
 
-			var result = _agencyPaymentService.GetAgencyBacsResult(_startDate, _endDate);
+			var result = _agencyBacsService.GetAgencyBacsResult(_startDate, _endDate);
 
 			_agencyRepositoryMock.Verify(x => x.GetAgencies(agencyIds), Times.Once);
 		}
@@ -87,12 +87,12 @@
 				.Setup(x => x.GetAgencies(It.IsAny<List<string>>()))
 				.ReturnsAsync(listAgencies);
 
-			var result = await _agencyPaymentService.GetAgencyBacsResult(_startDate, _endDate);
+			var result = await _agencyBacsService.GetAgencyBacsResult(_startDate, _endDate);
 
 			foreach (var agency in listAgencies)
 			{
 				var payment = listPayments.First(x => x.AgencyId == agency.Id);
-				var bacsResult = new BacsResult()
+				var bacsResult = new AgencyBacs()
 				{
 					AccountName = agency.BankDetails.AccountName,
 					AccountNumber = agency.BankDetails.AccountNumber,
@@ -137,7 +137,7 @@
 				.Setup(x => x.GetAgencies(It.IsAny<List<string>>()))
 				.ReturnsAsync(listAgencies);
 
-			var result = await _agencyPaymentService.GetAgencyBacsResult(_startDate, _endDate);
+			var result = await _agencyBacsService.GetAgencyBacsResult(_startDate, _endDate);
 
 			result.Count().Should().Be(listPayments.Count - 1);
 		}

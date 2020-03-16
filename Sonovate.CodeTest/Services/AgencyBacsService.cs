@@ -1,4 +1,4 @@
-﻿namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest.Services
 {
 	using System;
 	using System.Collections.Generic;
@@ -6,12 +6,12 @@
 	using System.Threading.Tasks;
 	using Domain;
 
-	public class AgencyPaymentService : IAgencyPaymentService
+	public class AgencyBacsService : IAgencyBacsService
 	{
 		private IAgencyRepository _agencyRepository;
 		private IPaymentsRepository _paymentsRepository;
 
-		public AgencyPaymentService()
+		public AgencyBacsService()
 		{
 			SetAgencyRepository(new AgencyRepository());
 			SetPaymentsRepository(new PaymentsRepository());
@@ -27,7 +27,7 @@
 			_paymentsRepository = paymentsRepository;
 		}
 
-		public async Task<List<BacsResult>> GetAgencyBacsResult(DateTime startDate, DateTime endDate)
+		public async Task<List<AgencyBacs>> GetAgencyBacsResult(DateTime startDate, DateTime endDate)
 		{
 			var payments = _paymentsRepository.GetBetweenDates(startDate, endDate);
 
@@ -39,16 +39,16 @@
 			var agencyIds = payments.Select(x => x.AgencyId).Distinct().ToList();
 			var agencies = await _agencyRepository.GetAgencies(agencyIds);
 
-			return BuildAgencyPayments(payments, agencies);
+			return BuildAgencyBacs(payments, agencies);
 		}
 		 
-		private static List<BacsResult> BuildAgencyPayments(IEnumerable<Payment> payments, List<Agency> agencies)
+		private static List<AgencyBacs> BuildAgencyBacs(IEnumerable<Payment> payments, List<Agency> agencies)
 		{
 			return (from p in payments
 				let agency = agencies.FirstOrDefault(x => x.Id == p.AgencyId)
 				where agency?.BankDetails != null
 				let bank = agency.BankDetails
-				select new BacsResult
+				select new AgencyBacs
 				{
 					AccountName = bank.AccountName,
 					AccountNumber = bank.AccountNumber,

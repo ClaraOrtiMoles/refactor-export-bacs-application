@@ -4,7 +4,9 @@ using Sonovate.CodeTest.Domain;
 
 namespace Sonovate.CodeTest
 {
-    public static class Application
+	using Services;
+
+	public static class Application
     {
         public static void Main()
         {

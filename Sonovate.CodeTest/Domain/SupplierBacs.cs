@@ -1,11 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-
-[assembly: InternalsVisibleTo("Sonovate.Codetest.UnitTests")]
-[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
-namespace Sonovate.CodeTest.Domain
+﻿namespace Sonovate.CodeTest.Domain
 {
-	using System.Runtime.CompilerServices;
-
 	
     internal class SupplierBacs
     {

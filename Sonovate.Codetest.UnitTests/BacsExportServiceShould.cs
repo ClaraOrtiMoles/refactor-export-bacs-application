@@ -7,6 +7,8 @@ namespace Sonovate.Codetest.UnitTests
 	using CodeTest;
 	using CodeTest.Configuration;
 	using CodeTest.Domain;
+	using CodeTest.Services;
+	using CodeTest.Services.Writers;
 	using FluentAssertions;
 	using Moq;
 	using NUnit.Framework;
@@ -18,7 +20,7 @@ namespace Sonovate.Codetest.UnitTests
 		private readonly Fixture _fixture = new Fixture();
 		private readonly BacsExportService _bacsExportService = new BacsExportService();
 		private Mock<ISettings> _settingsMock;
-		private Mock<IAgencyPaymentService> _agencyPaymentMock;
+		private Mock<IAgencyBacsService> _agencyBacsServiceMock;
 		private Mock<ICsvFileWriter> _csvFileWriterMock;
 		private string _exceptionMessage;
 		private	Mock<ISupplierBacsService> _supplierBacsServiceMock;
@@ -27,12 +29,12 @@ namespace Sonovate.Codetest.UnitTests
 		public void Setup()
 		{
 			_settingsMock = new Mock<ISettings>();
-			_agencyPaymentMock = new Mock<IAgencyPaymentService>();
+			_agencyBacsServiceMock = new Mock<IAgencyBacsService>();
 			_csvFileWriterMock = new Mock<ICsvFileWriter>();
 			_supplierBacsServiceMock = new Mock<ISupplierBacsService>();
 
 			_bacsExportService.SetSettings(_settingsMock.Object);
-			_bacsExportService.SetAgencyPaymentService(_agencyPaymentMock.Object);
+			_bacsExportService.SetAgencyBacsService(_agencyBacsServiceMock.Object);
 			_bacsExportService.SetCsvFileWriter(_csvFileWriterMock.Object);
 			_bacsExportService.SetSupplierBacsService(_supplierBacsServiceMock.Object);
 
@@ -59,7 +61,7 @@ namespace Sonovate.Codetest.UnitTests
 		public void ThrowException_WhenExportingZip_GivenBacsExportTypeIsAgencyAndGetAgencyBacsResultThrowsInvalidOperationException()
 		{
 			_settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("false");
-			_agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+			_agencyBacsServiceMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
 				.ThrowsAsync(new InvalidOperationException(_exceptionMessage));
 
 			Func<Task> action = () => _bacsExportService.ExportZip(BacsExportType.Agency);
@@ -70,8 +72,8 @@ namespace Sonovate.Codetest.UnitTests
 		public async Task ExportAgencyBacsResults_WhenExportingZip_GivenBacsExportTypeIsAgencyAndNotEnabledAgencyPayments()
 		{
 			_settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("true");
-			var bacsResults = _fixture.Create<List<BacsResult>>();
-			_agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+			var bacsResults = _fixture.Create<List<AgencyBacs>>();
+			_agencyBacsServiceMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
 				.ReturnsAsync(bacsResults);
 
 			await _bacsExportService.ExportZip(BacsExportType.Agency);
@@ -101,6 +103,14 @@ namespace Sonovate.Codetest.UnitTests
 
 			_csvFileWriterMock.Verify(x => x.WriteCsvFile($"{BacsExportType.Supplier.ToString()}_BACSExport.csv", bacsResults), Times.Once);
 
+		}
+
+		[Test]
+		public void ThrowAnException_WhenExportingZip_GivenTypeIsNotIdentified()
+		{
+			Func<Task> action = () => _bacsExportService.ExportZip(BacsExportType.NotIdentified);
+
+			action.Should().ThrowAsync<Exception>().WithMessage("Invalid BACS Export Type.");
 		}
 
 	}

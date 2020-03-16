@@ -2,6 +2,6 @@
 {
     public enum BacsExportType
     {
-        None, Agency, Supplier 
+        None, Agency, Supplier , NotIdentified
     }
 }

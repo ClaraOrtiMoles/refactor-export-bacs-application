@@ -1,7 +1,7 @@
-﻿namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest.Services.Writers
 {
-	using System.IO;
 	using System.Collections.Generic;
+	using System.IO;
 	using CsvHelper;
 
 	public class CsvFileWriter : ICsvFileWriter

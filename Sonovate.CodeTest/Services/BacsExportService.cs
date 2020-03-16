@@ -1,13 +1,15 @@
 ﻿namespace Sonovate.CodeTest
 {
-    using System;
-    using System.Threading.Tasks;
-    using Configuration;
-    using Domain;
+	using System;
+	using System.Threading.Tasks;
+	using Configuration;
+	using Domain;
+	using Services;
+	using Services.Writers;
 
-    internal class BacsExportService
+	internal class BacsExportService
     {
-        private IAgencyPaymentService _agencyPaymentService;
+        private IAgencyBacsService _agencyBacsService;
         private ICsvFileWriter _csvFileWriter;
         private ISupplierBacsService _supplierBacsService;
         private ISettings _settings;
@@ -15,7 +17,7 @@
         public BacsExportService()
         {
             SetSupplierBacsService(new SupplierBacsService());
-	        SetAgencyPaymentService(new AgencyPaymentService());
+	        SetAgencyBacsService(new AgencyBacsService());
             SetSettings(new Settings());
             SetCsvFileWriter(new CsvFileWriter());
         }
@@ -30,9 +32,9 @@
 	        _csvFileWriter = csvFileWriter;
         }
 
-        public void SetAgencyPaymentService(IAgencyPaymentService agencyPaymentService)
+        public void SetAgencyBacsService(IAgencyBacsService agencyBacsService)
         {
-	        _agencyPaymentService = agencyPaymentService;
+	        _agencyBacsService = agencyBacsService;
         }
 
         public void SetSupplierBacsService(ISupplierBacsService supplierBacsService)
@@ -82,12 +84,18 @@
         }
        
         private async Task ExportAgencyBacs(DateTime startDate, DateTime endDate)
-        {
-            if (_settings.GetSetting("EnableAgencyPayments") != "true")
+        { 
+            if (!IsAgencyPaymentsEnabled())
 		        return;
              
-            var payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
+            var payments = await _agencyBacsService.GetAgencyBacsResult(startDate, endDate);
 	        _csvFileWriter.WriteCsvFile(GetFileName(BacsExportType.Agency), payments);
+        }
+
+        private bool IsAgencyPaymentsEnabled()
+        {
+	        return bool.TryParse(_settings.GetSetting("EnableAgencyPayments"), out var enabledAgencyPayments) &&
+	               enabledAgencyPayments;
         }
 
         private static string GetFileName(BacsExportType type)
