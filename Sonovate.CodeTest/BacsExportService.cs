@@ -9,18 +9,39 @@ using Sonovate.CodeTest.Domain;
 
 namespace Sonovate.CodeTest
 {
-    public class BacsExportService
+	using Configuration;
+
+	public class BacsExportService
     {
         private const string NOT_AVAILABLE = "NOT AVAILABLE";
 
-        private readonly IDocumentStore documentStore;
+        private IAgencyPaymentService _agencyPaymentService;
+        private ICsvFileWriter _csvFileWriter;
+
+        private ISettings _settings;
 
         public BacsExportService()
         {
-            documentStore = new DocumentStore {Urls = new[]{"http://localhost"}, Database = "Export"};
-            documentStore.Initialize();
+	        SetAgencyPaymentService(new AgencyPaymentService());
+            SetSettings(new Settings());
+            SetCsvFileWriter(new CsvFileWriter());
+        }
+         
+        public void SetSettings(ISettings settings)
+        {
+	        _settings = settings;
         }
 
+        public void SetCsvFileWriter(ICsvFileWriter csvFileWriter)
+        {
+	        _csvFileWriter = csvFileWriter;
+        }
+
+        public void SetAgencyPaymentService(IAgencyPaymentService agencyPaymentService)
+        {
+	        _agencyPaymentService = agencyPaymentService;
+        }
+        
         public async Task ExportZip(BacsExportType bacsExportType)
         {
             if (bacsExportType == BacsExportType.None)
@@ -38,12 +59,11 @@ namespace Sonovate.CodeTest
                 switch (bacsExportType)
                 {
                     case BacsExportType.Agency:
-                        if (Application.Settings["EnableAgencyPayments"] == "true")
+                        if (_settings.GetSetting("EnableAgencyPayments") == "true")
                         {
-                            payments = await GetAgencyPayments(startDate, endDate);
+                            payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
                             SavePayments(payments, bacsExportType);
                         }
-                        
                         break;
                     case BacsExportType.Supplier:
                         var supplierBacsExport = GetSupplierPayments(startDate, endDate);
@@ -59,56 +79,12 @@ namespace Sonovate.CodeTest
                 throw new Exception(inOpEx.Message);
             }
         }
-
-        private async Task<List<BacsResult>> GetAgencyPayments(DateTime startDate, DateTime endDate)
-        {
-            var paymentRepository = new PaymentsRepository();
-            var payments = paymentRepository.GetBetweenDates(startDate, endDate);
-            
-            if (!payments.Any())
-            {
-                throw new InvalidOperationException(string.Format("No agency payments found between dates {0:dd/MM/yyyy} to {1:dd/MM/yyyy}", startDate, endDate));
-            }
-
-            var agencies = await GetAgenciesForPayments(payments);
-
-            return BuildAgencyPayments(payments, agencies);
-        }
-
-        private async Task<List<Agency>> GetAgenciesForPayments(IList<Payment> payments)
-        {
-            var agencyIds = payments.Select(x => x.AgencyId).Distinct().ToList();
-
-            using (var session = documentStore.OpenAsyncSession())
-            {
-                return (await session.LoadAsync<Agency>(agencyIds)).Values.ToList();
-            }
-        }
-
-        private List<BacsResult> BuildAgencyPayments(IEnumerable<Payment> payments, List<Agency> agencies)
-        {
-            return (from p in payments
-                let agency = agencies.FirstOrDefault(x => x.Id == p.AgencyId)
-                where agency != null && agency.BankDetails != null
-                let bank = agency.BankDetails
-                select new BacsResult
-                {
-                    AccountName = bank.AccountName,
-                    AccountNumber = bank.AccountNumber,
-                    SortCode = bank.SortCode,
-                    Amount = p.Balance,
-                    Ref = string.Format("SONOVATE{0}", p.PaymentDate.ToString("ddMMyyyy"))
-                }).ToList();
-        }
-
+         
         private void SavePayments(IEnumerable<BacsResult> payments, BacsExportType type)
         {
             var filename = string.Format("{0}_BACSExport.csv", type);
 
-            using (var csv = new CsvWriter(new StreamWriter(new FileStream(filename, FileMode.Create))))
-            {
-                csv.WriteRecords(payments);
-            }
+            _csvFileWriter.WriteCsvFile<BacsResult>(filename, payments);
         }
 
         private SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate)

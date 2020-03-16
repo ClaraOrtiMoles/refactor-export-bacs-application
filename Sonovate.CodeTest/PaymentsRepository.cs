@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Sonovate.CodeTest.Domain;
 
 namespace Sonovate.CodeTest
 {
-    internal class PaymentsRepository
+    internal class PaymentsRepository : IPaymentsRepository
     {
         public IList<Payment> GetBetweenDates(DateTime start, DateTime end)
         {
