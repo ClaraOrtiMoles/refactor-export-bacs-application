@@ -13,11 +13,25 @@ namespace Sonovate.Codetest.UnitTests
 
 	public class BacsExportServiceShould
 	{
+		private readonly Fixture _fixture = new Fixture();
 		private readonly BacsExportService _bacsExportService = new BacsExportService();
-
+		private Mock<ISettings> _settingsMock;
+		private Mock<IAgencyPaymentService> _agencyPaymentMock;
+		private Mock<ICsvFileWriter> _csvFileWriterMock;
+		private string _exceptionMessage;
+		
 		[SetUp]
 		public void Setup()
 		{
+			_settingsMock = new Mock<ISettings>();
+			_agencyPaymentMock = new Mock<IAgencyPaymentService>();
+			_csvFileWriterMock = new Mock<ICsvFileWriter>();
+
+			_bacsExportService.SetSettings(_settingsMock.Object);
+			_bacsExportService.SetAgencyPaymentService(_agencyPaymentMock.Object);
+			_bacsExportService.SetCsvFileWriter(_csvFileWriterMock.Object);
+
+			_exceptionMessage = _fixture.Create<string>();
 		}
 
 		[Test]
@@ -30,10 +44,8 @@ namespace Sonovate.Codetest.UnitTests
 		[Test]
 		public void NotThrowException_WhenExportingZip_GivenBacsExportTypeIsAgencyAndNotEnabledAgencyPayments()
 		{
-			var settingsMock = new Mock<ISettings>();
-			settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("false");
+			_settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("false");
 
-			_bacsExportService.SetSettings(settingsMock.Object);
 			Func<Task> action = () => _bacsExportService.ExportZip(BacsExportType.Agency);
 			action.Should().NotThrowAsync<Exception>();
 		}
@@ -41,36 +53,25 @@ namespace Sonovate.Codetest.UnitTests
 		[Test]
 		public void ThrowException_WhenExportingZip_GivenBacsExportTypeIsAgencyAndGetAgencyBacsResultThrowsInvalidOperationException()
 		{
-			var settingsMock = new Mock<ISettings>();
-			settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("false");
-			var agencyPaymentMock = new Mock<IAgencyPaymentService>();
-			var exceptionMessage = "blah";
-			agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
-				.ThrowsAsync(new InvalidOperationException(exceptionMessage));
-			_bacsExportService.SetSettings(settingsMock.Object);
-			_bacsExportService.SetAgencyPaymentService(agencyPaymentMock.Object);
+			_settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("false");
+			_agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+				.ThrowsAsync(new InvalidOperationException(_exceptionMessage));
 
 			Func<Task> action = () => _bacsExportService.ExportZip(BacsExportType.Agency);
-			action.Should().ThrowAsync<Exception>().WithMessage(exceptionMessage);
+			action.Should().ThrowAsync<Exception>().WithMessage(_exceptionMessage);
 		}
 
 		[Test]
 		public async Task ExportAgencyBacsResults_WhenExportingZip_GivenBacsExportTypeIsAgencyAndNotEnabledAgencyPayments()
 		{
-			var settingsMock = new Mock<ISettings>();
-			settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("true");
-			var agencyPaymentMock = new Mock<IAgencyPaymentService>();
-			var bacsResults = (new Fixture()).Create<List<BacsResult>>();
-			agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+			_settingsMock.Setup(x => x.GetSetting("EnableAgencyPayments")).Returns("true");
+			var bacsResults = _fixture.Create<List<BacsResult>>();
+			_agencyPaymentMock.Setup(x => x.GetAgencyBacsResult(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
 				.ReturnsAsync(bacsResults);
-			var csvFileWriterMock = new Mock<ICsvFileWriter>();
-			_bacsExportService.SetSettings(settingsMock.Object);
-			_bacsExportService.SetAgencyPaymentService(agencyPaymentMock.Object);
-			_bacsExportService.SetCsvFileWriter(csvFileWriterMock.Object);
 
 			await _bacsExportService.ExportZip(BacsExportType.Agency);
 
-			csvFileWriterMock.Verify(x => x.WriteCsvFile($"{BacsExportType.Agency.ToString()}_BACSExport.csv", bacsResults), Times.Once);
+			_csvFileWriterMock.Verify(x => x.WriteCsvFile($"{BacsExportType.Agency.ToString()}_BACSExport.csv", bacsResults), Times.Once);
 		}
 		 
 	}

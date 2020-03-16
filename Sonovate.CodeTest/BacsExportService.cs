@@ -46,25 +46,26 @@ namespace Sonovate.CodeTest
         {
             if (bacsExportType == BacsExportType.None)
             {
-                const string invalidExportTypeMessage = "No export type provided.";
-                throw new Exception(invalidExportTypeMessage);
+                throw new Exception("No export type provided.");
             }
 
+           
             var startDate = DateTime.Now.AddMonths(-1);
             var endDate = DateTime.Now;
 
             try
             {
-                List<BacsResult> payments;
+	            if (bacsExportType == BacsExportType.Agency && _settings.GetSetting("EnableAgencyPayments") == "true")
+	            {
+		            var payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
+		            var filename = $"{bacsExportType}_BACSExport.csv";
+		            _csvFileWriter.WriteCsvFile<BacsResult>(filename, payments);
+                }
+
                 switch (bacsExportType)
                 {
                     case BacsExportType.Agency:
-                        if (_settings.GetSetting("EnableAgencyPayments") == "true")
-                        {
-                            payments = await _agencyPaymentService.GetAgencyBacsResult(startDate, endDate);
-                            SavePayments(payments, bacsExportType);
-                        }
-                        break;
+	                    break;
                     case BacsExportType.Supplier:
                         var supplierBacsExport = GetSupplierPayments(startDate, endDate);
                         SaveSupplierBacsExport(supplierBacsExport);
@@ -79,14 +80,7 @@ namespace Sonovate.CodeTest
                 throw new Exception(inOpEx.Message);
             }
         }
-         
-        private void SavePayments(IEnumerable<BacsResult> payments, BacsExportType type)
-        {
-            var filename = string.Format("{0}_BACSExport.csv", type);
-
-            _csvFileWriter.WriteCsvFile<BacsResult>(filename, payments);
-        }
-
+        
         private SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate)
         {
             var invoiceTransactions = new InvoiceTransactionRepository();
