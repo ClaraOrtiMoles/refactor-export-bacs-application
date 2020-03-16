@@ -11,6 +11,8 @@ namespace Sonovate.Codetest.UnitTests
 	using Moq;
 	using NUnit.Framework;
 
+	[TestFixture]
+
 	public class BacsExportServiceShould
 	{
 		private readonly Fixture _fixture = new Fixture();
@@ -93,7 +95,7 @@ namespace Sonovate.Codetest.UnitTests
 			var bacsResults = _fixture.Create<List<SupplierBacs>>();
 
 			_supplierBacsServiceMock.Setup(x => x.GetSupplierPayments(It.IsAny<DateTime>(), It.IsAny<DateTime>()))
-				.Returns(new SupplierBacsExport() {SupplierPayment = bacsResults});
+				.Returns(bacsResults);
 			
 			await _bacsExportService.ExportZip(BacsExportType.Supplier);
 

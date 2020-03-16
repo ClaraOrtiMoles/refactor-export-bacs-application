@@ -1,10 +1,11 @@
 ﻿namespace Sonovate.CodeTest
 {
 	using System;
+	using System.Collections.Generic;
 	using Domain;
 
 	internal interface ISupplierBacsService
 	{
-		SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate);
+		List<SupplierBacs> GetSupplierPayments(DateTime startDate, DateTime endDate);
 	}
 }

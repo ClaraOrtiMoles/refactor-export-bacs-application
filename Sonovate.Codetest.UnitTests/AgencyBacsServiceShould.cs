@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Sonovate.Codetest.UnitTests
+﻿namespace Sonovate.Codetest.UnitTests
 {
+	using System;
+	using System.Collections.Generic;
 	using System.Linq;
 	using System.Threading.Tasks;
 	using AutoFixture;
@@ -13,7 +11,8 @@ namespace Sonovate.Codetest.UnitTests
 	using Moq;
 	using NUnit.Framework;
 
-	public class AgencyPaymentServiceShould
+	[TestFixture]
+	public class AgencyBacsServiceShould
 	{
 		private readonly Fixture _fixture = new Fixture();
 		private AgencyPaymentService _agencyPaymentService;

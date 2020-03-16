@@ -2,7 +2,6 @@
 {
 	using System.IO;
 	using System.Collections.Generic;
-
 	using CsvHelper;
 
 	public class CsvFileWriter : ICsvFileWriter

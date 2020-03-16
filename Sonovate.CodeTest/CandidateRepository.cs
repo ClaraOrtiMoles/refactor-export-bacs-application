@@ -3,7 +3,7 @@ using Sonovate.CodeTest.Domain;
 
 namespace Sonovate.CodeTest
 {
-    internal class CandidateRepository
+    internal class CandidateRepository : ICandidateRepository
     {
         public Candidate GetById(string supplierId)
         {

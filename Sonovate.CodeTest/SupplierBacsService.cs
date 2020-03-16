@@ -1,42 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Sonovate.CodeTest
+﻿namespace Sonovate.CodeTest
 {
 	using System.Linq;
 	using Domain;
+	using System;
+	using System.Collections.Generic;
 
     internal class SupplierBacsService : ISupplierBacsService
 	{
 		private const string NOT_AVAILABLE = "NOT AVAILABLE";
+		private IInvoiceTransactionRepository _invoiceTransactionRepository;
+		private ICandidateRepository _candidateRepository;
 
-        public SupplierBacsExport GetSupplierPayments(DateTime startDate, DateTime endDate)
+        public SupplierBacsService()
+		{
+			SetInvoiceTransactionRepository(new InvoiceTransactionRepository());
+			SetCandidateRepository(new CandidateRepository());
+		}
+
+        public void SetCandidateRepository(ICandidateRepository candidateRepository)
         {
-            var invoiceTransactions = new InvoiceTransactionRepository();
-            var candidateInvoiceTransactions = invoiceTransactions.GetBetweenDates(startDate, endDate);
+	        _candidateRepository = candidateRepository;
+        }
+
+        public void SetInvoiceTransactionRepository(IInvoiceTransactionRepository invoiceTransactionRepository)
+		{
+			_invoiceTransactionRepository = invoiceTransactionRepository;
+		}
+
+		public List<SupplierBacs> GetSupplierPayments(DateTime startDate, DateTime endDate)
+        { 
+            var candidateInvoiceTransactions = _invoiceTransactionRepository.GetBetweenDates(startDate, endDate);
 
             if (!candidateInvoiceTransactions.Any())
             {
-                throw new InvalidOperationException(string.Format("No supplier invoice transactions found between dates {0} to {1}", startDate, endDate));
+                throw new InvalidOperationException($"No supplier invoice transactions found between dates {startDate} to {endDate}");
             }
 
-            var candidateBacsExport = CreateCandidateBacxExportFromSupplierPayments(candidateInvoiceTransactions);
-
-            return candidateBacsExport;
+            return BuildSupplierPayments(candidateInvoiceTransactions);
         }
-        private SupplierBacsExport CreateCandidateBacxExportFromSupplierPayments(IList<InvoiceTransaction> supplierPayments)
-        {
-            var candidateBacsExport = new SupplierBacsExport
-            {
-                SupplierPayment = new List<SupplierBacs>()
-            };
-
-            candidateBacsExport.SupplierPayment = BuildSupplierPayments(supplierPayments);
-
-            return candidateBacsExport;
-        }
-
+      
         private List<SupplierBacs> BuildSupplierPayments(IEnumerable<InvoiceTransaction> invoiceTransactions)
         {
             var results = new List<SupplierBacs>();
@@ -49,13 +51,11 @@ namespace Sonovate.CodeTest
 
             foreach (var transactionGroup in transactionsByCandidateAndInvoiceId)
             {
-                var candidateRepository = new CandidateRepository();
-                var candidate = candidateRepository.GetById(transactionGroup.Key.SupplierId);
+                var candidate = _candidateRepository.GetById(transactionGroup.Key.SupplierId);
 
                 if (candidate == null)
                 {
-                    throw new InvalidOperationException(string.Format("Could not load candidate with Id {0}",
-                        transactionGroup.Key.SupplierId));
+                    throw new InvalidOperationException($"Could not load candidate with Id {transactionGroup.Key.SupplierId}");
                 }
 
                 var result = new SupplierBacs();

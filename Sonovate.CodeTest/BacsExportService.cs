@@ -77,7 +77,7 @@
 
         private void ExportSupplierBacs(DateTime startDate, DateTime endDate)
         {
-            var paymentsSuppliers = _supplierBacsService.GetSupplierPayments(startDate, endDate).SupplierPayment;
+            var paymentsSuppliers = _supplierBacsService.GetSupplierPayments(startDate, endDate);
 	        _csvFileWriter.WriteCsvFile(GetFileName(BacsExportType.Supplier), paymentsSuppliers);
         }
        
